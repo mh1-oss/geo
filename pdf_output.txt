@@ -1,0 +1,70 @@
+Supervised by Prof. A’amal Al Saidi
+University of  Baghdad    College  of  EngineeringCivil Engineering  Department    
+Prepared By:Adnan MohammedAhmed Zuhair Mohammed 
+Pile load tests are conducted to verify:The actualultimate load capacityof the pileThe real settlement or uplift displacement under applied loadsThe accuracy of the design assumptionsThe load transfer mechanism from the pile to the soil.
+Pile Load tests are excuted in two ways 1-Trial Pile Test- Load test used to refine/finalize design.- loaded to failureor 3 times of design load2-Working Pile Test -Used when previous experience exists at the site.-loaded to 2× working design load.
+Pile Load Test
+ASTM 1193
+Axial CompressionPile Load
+a) Bearing and Friction Failureb) Structural Failure / Crushing c) Buckling Failure
+1. Anchor PileWorking:
+
+Anchor Pile
+
+1. Anchor PileWorking:
+
+
+2. Kent ledge System 
+
+2. Kent ledgeSystem 
+
+4. Two-Pressure Humidity Control
+
+Procedures (According to ASTM D1143)1.Slow Maintained Load (SM)2.Quick Maintained Load (QM)3.Constant Rate of Penetration (CRP)4.Swedish Cyclic Test (SC)
+Test Procedures (ASTM D1143-81)Slow Maintained Load Test (SM)–Most accurate and widely used–Duration: 40–70 hours–Load applied in 8 increments 0%,25, 50, 75, 100, 125, 150, 175% up to 200% of design load–For each load increment: record settlement for 1 hour. If the rate is ≤0.25 mm/hr, move to the next load. If it’s >0.25 mm/hr, maintain the load for up to 2 hours.–200% load maintained for 24 hours or 12 hr if the settlement recorded less than 0.25 mm/hr.
+Test Procedures (ASTM D1143-81)Slow Maintained Load Test (SM)–Unload the pile in four steps, each step removing 25% of the applied load, each unloading step (1 hr). –After unloading (load became zero), –If working pile left the pile without loading for 12 hr and record the restrained for pile.–For a trial (failure) pile: reload in 4 steps up to 200% of the design load, with 20 minutes between steps. After reaching 200%, continue loading in 10% increments up to 300%, keeping 20 minutes between each increment. Or Continued until pile failure
+Test Procedures (ASTM D1143-81)Slow Maintained Load Test (SM)–Unload the pile in four steps, each step removing 25% of the applied load, each unloading step (1 hr) and pile left without loading for 12 hr and record the restrained for pile.–The main disadvantage is that the test takes a long time, often 40–70  (48) hours or more.
+
+Test Procedures (ASTM D1143-81)2-Quick Maintained Load Test (QM)–Only for working pile–Load the pile in 20 increments up to 300% of the design load (each increment = 15% of design load).–Maintain each load increment for (5-15) minutes, taking readings every 2.5
+•Maintain each load increment for 5 minutes, taking readings every 2.5 minutes.
+Test Procedures (ASTM D1143-81)2-Quick Maintained Load Test (QM)–Continue adding load increments until the test load is reached (300% of design load) .–After a 5-minute interval, –remove the full load in four equal decrements, with 5 minutes between each decrement.–After unloading left the pile 15 minute and record the settlement
+Test Procedures (ASTM D1143-81)2-Quick Maintained Load Test (QM)–Advantages:–Fast (3–5 hrs) and economical–Dissadvantages: –Not suitable for settlement prediction.
+
+Constant Rate of Penetration (CRP)–Constant pile movement rate of 0.05 in/min.–Force required to maintain rate is recorded.–Pros: Fast. Cons: High load needed for end-bearing piles.
+Swedish Cyclic Test (SC)–Repeated loading/unloading cycles.–Used mainly in research or cyclic loading structures.–Cons: Time-consuming; modifies pile behavior.
+Figure 1.3Comparison of load-movement behaviour for test methods (Fellenius, 1975).
+Interpretation of Load–Settlement Results1. Davisson’s method (1972)2. Chin’s method (1970, 1971)3. De Beer’s method (1967)or De Beer and Wallays’ method (1972)4. Brinch Hansen’s 90 percent criterion (1963)5. Brinch Hansen’s 80 percent criterion (1963)6. Mazurkiewicz’s method (1972)7. Fuller and Hoy’s method (1970)8. Butler and Hoy’s method (1977)
+
+
+
+1-Davisson Interpretation Method–Uses deviation from elastic line + offset.–Conservative and widely used for contracts.
+
+1-Davisson Interpretation Method
+
+Q ult= 860 kNQ all= 860/3= 287 kN1-Davisson Interpretation Method
+BA9000Load (ton)7.3877.3833BA406406D (mm)300300Dr (mm)9000000P (Ton)2000020000L (mm)164836164836Ap 3000000030000000Ep (kN/m)^2
+Notes:•Originally recommended for driven piles.•Very suitable for QM (Quick Maintained) tests.•Advantage: the BC line can be drawn beforetesting, making it useful for acceptance criteria in contract piles.
+1-Davisson Interpretation Method
+Chin Hyperbolic MethodChin’s method identifies the ultimate load using a hyperbolic relationship between load and settlement.Plot Δ/Qₐ versus Δ,where Δ = movement and Qₐ = applied load.The resulting plot should form a straight line (hyperbolic trend).The inverse of the slope of this line gives the ultimate pile load.
+2-Chin’s Method
+Qult=1/C1  = 1/ 0.085 =11.63 tonSlope of line :     C1=0.085
+2-Chin’s MethodNotes:• This ultimate load interpretation method applies to both QMand SMtests if constant time incrementsare used.• Datapoints may not alignon the straight lineuntil the load exceeds Davisson’s limit value.• The method may not give realistic failure valuesfor tests performed using the ASTM Standard Method, because ASTM may not use constant time increments.
+De Beer Log-Log MethodThis method identifies the ultimate load by analyzing the pile’s load–movement response on logarithmic scales.Steps:•Plot loadvs movement on log–log scales.•The plotted points form two straight lines.•The ultimate load is the intersection point of these two lines.Notes:•Initially developed for slow maintained tests (SM tests).•Works best when the curve clearly forms two linear segments.
+3-De Beer’s Method (1967)
+Qult=600 Tonton600Qult.=Ton200Qall=
+4-Brinch Hansen's 90% 
+
+4-Brinch Hansen's 90% 
+Ton74090% .Qu=Ton.822Qult.=Ton.274Qall=
+5-Brinch Hansen's 80% 
+
+6-Mazurkiewicz’s Method–Plot the load–movement curve.–Select equal pile-head movements → draw vertical linesto intersect the curve, then draw horizontal linesto the load axis.–From each load intersection, draw a 45° lineto intersect the next load line.
+6-Mazurkiewicz’s Method–These intersection points form an approximate straight line.–Extend this straight line to the vertical load axis→ the intersection gives the failure load.–Assumes the curve is approximately parabolic.–Failure load is typically close to the 80% criterion, but some judgment is needed because points may not align perfectly.
+6-Brinch Hansen's 80% 
+
+7-Fuller and Hoy’s Method–Plot the load–movement curve.–Identify the failure load where the tangent slopeof the curve equals 0.05 in/ton.–Method applies to QM tests.–Main disadvantage: it penalizes long piles, since their larger elastic movements reach the 0.05 in/ton slope earlier.
+8-Butler and Hoy’s Method–Plot the load–movement curve.–The failure load is the intersection of the 0.05 in/ton slope linewith either:–the initial straight portionof the curve, or–a line parallel to the rebound (elastic) linefrom the origin.–Applicable to QM tests.
+
+
+Reference–Prakash, S., & Sharma, H. D. (1990). Pile foundations in engineering practice. John Wiley & Sons.–Example for pile load test from Dr.Asaad .–Example for pile load test from Dr.Taha Y . 
+
