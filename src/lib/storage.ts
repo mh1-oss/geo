@@ -32,6 +32,8 @@ export interface LoadTestData {
     failureCriteria: string;
     pileDiameter: number;   // mm
     pileLength: number;     // m
+    pileArea?: number;      // mm² (optional, for non-circular piles)
+    elasticModulus?: number; // MPa (optional, defaults to 30000)
     material: string;
     steps: LoadTestStep[];
     ultimateCapacity: number | null;

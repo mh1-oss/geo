@@ -1,0 +1,71 @@
+﻿
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90mC:/Users/mmhho/OneDrive/Desktop/New folder (12)[39m
+
+ [32mΓ£ô[39m src/lib/calc/__tests__/loadTestMethods.test.ts [2m ([22m[2m9 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mDavisson: Qult is not reached for this dataset[22m[39m
+Davisson Qult = [1mnull[22m kN
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mChin: Qult Γëê 204 tons[22m[39m
+Chin Qult = [33m206[39m
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mDe Beer: Qult Γëê 62 tons[22m[39m
+De Beer Qult = [33m57[39m
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mBrinch Hansen 90%: Qult Γëê 183 tons (fallback: 100)[22m[39m
+BH 90% Qult = [33m100[39m
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mBrinch Hansen 80%: Qult Γëê 90 tons[22m[39m
+BH 80% Qult = [33m90[39m
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mMazurkiewicz: Qult Γëê 125 tons[22m[39m
+Mazurkiewicz Qult = [33m125[39m
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mButler & Hoy: returns result[22m[39m
+Butler & Hoy Qult = [33m174[39m
+Butler & Hoy Chart = [
+  {
+    label: [32m'Hyperbolic Extrapolation'[39m,
+    points: [
+      [36m[Object][39m, [36m[Object][39m,
+      [36m[Object][39m, [36m[Object][39m,
+      [36m[Object][39m, [36m[Object][39m,
+      [36m[Object][39m, [36m[Object][39m,
+      [36m[Object][39m, [36m[Object][39m,
+      [36m[Object][39m
+    ],
+    style: [32m'dotted'[39m,
+    color: [32m'#94a3b8'[39m
+  },
+  {
+    label: [32m'Initial Tangent'[39m,
+    points: [ [36m[Object][39m, [36m[Object][39m ],
+    style: [32m'dashed'[39m,
+    color: [32m'#3b82f6'[39m
+  },
+  {
+    label: [32m'0.05 in/ton Tangent'[39m,
+    points: [ [36m[Object][39m, [36m[Object][39m ],
+    style: [32m'dashed'[39m,
+    color: [32m'#ec4899'[39m
+  }
+] [
+  { x: [33m0.2[39m, y: [33m0[39m },
+  { x: [33m0.77[39m, y: [33m15[39m },
+  { x: [33m1.32[39m, y: [33m30[39m },
+  { x: [33m1.97[39m, y: [33m45[39m },
+  { x: [33m2.67[39m, y: [33m60[39m },
+  { x: [33m3.71[39m, y: [33m75[39m },
+  { x: [33m5.04[39m, y: [33m90[39m }
+]
+
+[90mstdout[2m | src/lib/calc/__tests__/excelVerification.test.ts[2m > [22m[2mExcel Reference Data Verification[2m > [22m[2mVan der Veen: Qult Γëê 130 tons[22m[39m
+Van der Veen Qult = [33m149[39m
+
+ [32mΓ£ô[39m src/lib/calc/__tests__/excelVerification.test.ts [2m ([22m[2m10 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/calc/__tests__/calc.test.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 18:56:28
+[2m   Duration [22m 817ms[2m (transform 164ms, setup 0ms, collect 287ms, tests 24ms, environment 1ms, prepare 1.12s)[22m
+

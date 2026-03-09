@@ -80,6 +80,35 @@ function fmtNum(v: number): string {
     return v.toPrecision(3);
 }
 
+/* ────────────────────── A4 page shell ────────────────────── */
+const A4_STYLE = "bg-white shadow-xl print:shadow-none mb-6 print:mb-0 print:p-0 box-border";
+const A4_INNER = "p-[12mm] print:p-[10mm] flex flex-col";
+
+function PageShell({ children, pageNum, totalPages }: { children: React.ReactNode; pageNum: number; totalPages: number }) {
+    return (
+        <div className={A4_STYLE} style={{ width: '210mm', minHeight: '297mm', maxHeight: '297mm', overflow: 'hidden', pageBreakAfter: 'always', breakAfter: 'page' }}>
+            <div className={A4_INNER} style={{ height: '292mm', maxHeight: '292mm', overflow: 'hidden' }}>
+                <div className="flex-1 overflow-hidden">{children}</div>
+                <div className="flex items-center justify-between text-[7px] text-slate-400 border-t border-slate-100 pt-1 mt-2 flex-shrink-0">
+                    <span>GeoPile Pro — Engineering Suite </span>
+                    <span>Page {pageNum} of {totalPages}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ────────────────────── Section header ────────────────────── */
+function SectionHead({ num, title, color = 'border-blue-500' }: { num: string; title: string; color?: string }) {
+    return (
+        <div className={`flex items-center gap-2.5 mb-3 pb-2 border-b border-slate-200 border-l-[3px] ${color} pl-3 -ml-1`}>
+            <span className="text-base font-black text-blue-400/60">{num}</span>
+            <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+        </div>
+    );
+}
+
+/* ══════════════════════ MAIN COMPONENT ══════════════════════ */
 export default function LoadTestReport() {
     const { activeProject } = useProject();
     const lt = activeProject?.loadTest;
@@ -97,12 +126,13 @@ export default function LoadTestReport() {
         result: analyzeLoadTest(m, steps, pileDiameter, pileLength),
     })), [steps, pileDiameter, pileLength]);
 
-    // Chart data
+    // Chart computations — include ALL data (including negative x for Mazurkiewicz)
     const chart = analysis.chart;
     const dp = chart.dataPoints;
-    const allXs = [...dp.map(p => p.x), ...chart.lines.flatMap(l => l.points.map(p => p.x))].filter(v => isFinite(v));
-    const allYs = [...dp.map(p => p.y), ...chart.lines.flatMap(l => l.points.map(p => p.y))].filter(v => isFinite(v));
-    const xTicks = niceTicks(allXs.length ? Math.min(...allXs, 0) : 0, allXs.length ? Math.max(...allXs) * 1.05 : 1, 7);
+    const allChartLines = chart.lines.filter(l => l.color !== 'transparent');
+    const allXs = [...dp.map(p => p.x), ...allChartLines.flatMap(l => l.points.map(p => p.x)), ...chart.markers.map(m => m.x)].filter(v => isFinite(v));
+    const allYs = [...dp.map(p => p.y), ...allChartLines.flatMap(l => l.points.map(p => p.y)), ...chart.markers.map(m => m.y)].filter(v => isFinite(v));
+    const xTicks = niceTicks(allXs.length ? Math.min(...allXs) : 0, allXs.length ? Math.max(...allXs) * 1.05 : 1, 7);
     const yTicks = niceTicks(allYs.length ? Math.min(...allYs, 0) : 0, allYs.length ? Math.max(...allYs) * 1.05 : 1, 7);
     const xMin = xTicks[0], xMax = xTicks[xTicks.length - 1];
     const yMin = yTicks[0], yMax = yTicks[yTicks.length - 1];
@@ -116,10 +146,13 @@ export default function LoadTestReport() {
     const maxCapacity = capacityValues.length ? Math.max(...capacityValues) : null;
 
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const completedSteps = steps.filter(s => s.status === 'completed');
+    const maxLoad = steps.length > 0 ? Math.max(...steps.map(s => s.load)) : 0;
+    const maxSettle = steps.length > 0 ? Math.max(...steps.map(s => s.settlement)) : 0;
 
     return (
         <div className="flex-1 overflow-y-auto bg-slate-200 print:bg-white">
-            {/* Print button — hidden on print */}
+            {/* Toolbar — hidden on print */}
             <div className="sticky top-0 z-50 bg-[#131d27] border-b border-slate-800 px-6 py-3 flex items-center justify-between print:hidden">
                 <div>
                     <h1 className="text-lg font-bold text-white">Report Preview</h1>
@@ -131,330 +164,282 @@ export default function LoadTestReport() {
                 </button>
             </div>
 
-            {/* ================================ */}
-            {/* PRINTABLE REPORT — A4 white pages */}
-            {/* ================================ */}
-            <div className="max-w-[210mm] mx-auto print:max-w-none">
+            {/* ═══════ A4 Pages Container ═══════ */}
+            <div className="max-w-[210mm] mx-auto py-6 print:py-0 print:max-w-none">
 
-                {/* ─── PAGE 1: COVER ─── */}
-                <div className="bg-white shadow-xl print:shadow-none mb-4 print:mb-0 report-page" style={{ minHeight: '297mm' }}>
-                    <div className="p-12 lg:p-16 flex flex-col justify-between" style={{ minHeight: '297mm' }}>
-                        {/* Top bar */}
-                        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4">
+                {/* ───── PAGE 1: COVER ───── */}
+                <PageShell pageNum={1} totalPages={5}>
+                    <div className="flex flex-col justify-between h-full">
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-3">
                             <div>
-                                <h1 className="text-3xl font-black text-slate-900 tracking-tight">GeoPile Pro</h1>
-                                <p className="text-sm text-slate-500 font-medium">Engineering Suite v2.4</p>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">GeoPile Pro</h1>
+                                <p className="text-xs text-slate-500 font-medium">Engineering Suite v2.4</p>
                             </div>
-                            <div className="text-right text-xs text-slate-400">
+                            <div className="text-right text-[9px] text-slate-400">
                                 <p>Report ID: RPT-{Date.now().toString(36).toUpperCase()}</p>
                                 <p>{today}</p>
                             </div>
                         </div>
 
-                        {/* Title area */}
-                        <div className="flex-1 flex flex-col justify-center py-20">
-                            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-4">Pile Load Test Analysis Report</p>
-                            <h2 className="text-5xl font-black text-slate-900 leading-tight mb-6">{selectedMethod}</h2>
-                            <div className="w-24 h-1 bg-blue-600 rounded mb-8"></div>
-                            <p className="text-xl text-slate-600 max-w-md leading-relaxed">
+                        {/* Title */}
+                        <div className="flex-1 flex flex-col justify-center py-12">
+                            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3">Pile Load Test Analysis Report</p>
+                            <h2 className="text-4xl font-black text-slate-900 leading-tight mb-4">{selectedMethod}</h2>
+                            <div className="w-20 h-1 bg-blue-600 rounded mb-6"></div>
+                            <p className="text-lg text-slate-600 max-w-md leading-relaxed">
                                 Static pile load test interpretation and ultimate capacity determination for {activeProject?.name || 'the project site'}.
                             </p>
                         </div>
 
-                        {/* Project info grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 border-t-2 border-slate-200 pt-8">
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Project</p>
-                                <p className="text-sm font-bold text-slate-800">{activeProject?.name || 'Unnamed'}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Test Method</p>
-                                <p className="text-sm font-bold text-slate-800">{lt?.method || 'Static Axial (ASTM D1143)'}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pile Diameter</p>
-                                <p className="text-sm font-bold text-slate-800">{pileDiameter} mm</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pile Length</p>
-                                <p className="text-sm font-bold text-slate-800">{pileLength} m</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ─── PAGE 2: METHOD DESCRIPTION & RESULTS ─── */}
-                <div className="bg-white shadow-xl print:shadow-none mb-4 print:mb-0 report-page p-10 lg:p-14" style={{ minHeight: '297mm' }}>
-                    {/* Section 1: Method Description */}
-                    <div className="mb-10">
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">01</span>
-                            <h3 className="text-xl font-bold text-slate-800">Method Description</h3>
-                        </div>
-
-                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Theoretical Background</h4>
-                        <p className="text-sm text-slate-600 leading-relaxed mb-5">{methodInfo.theory}</p>
-
-                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Procedure</h4>
-                        <p className="text-sm text-slate-600 leading-relaxed mb-5">{methodInfo.procedure}</p>
-
-                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Notes & Limitations</h4>
-                        <p className="text-sm text-slate-600 leading-relaxed">{methodInfo.notes}</p>
-                    </div>
-
-                    {/* Section 2: Test Parameters */}
-                    <div className="mb-10">
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">02</span>
-                            <h3 className="text-xl font-bold text-slate-800">Test Parameters</h3>
-                        </div>
-
-                        <table className="w-full text-sm border border-slate-200">
-                            <tbody className="divide-y divide-slate-100">
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50 w-1/3">Pile Diameter (D)</td><td className="px-4 py-2.5 font-bold text-slate-800">{pileDiameter} mm</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Pile Length (L)</td><td className="px-4 py-2.5 font-bold text-slate-800">{pileLength} m</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Material</td><td className="px-4 py-2.5 font-bold text-slate-800">{material}</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Interpretation Method</td><td className="px-4 py-2.5 font-bold text-blue-700">{selectedMethod}</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Number of Load Steps</td><td className="px-4 py-2.5 font-bold text-slate-800">{steps.filter(s => s.status === 'completed').length}</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Maximum Applied Load</td><td className="px-4 py-2.5 font-bold text-slate-800">{steps.length > 0 ? Math.max(...steps.map(s => s.load)).toLocaleString() : '—'} kN</td></tr>
-                                <tr><td className="px-4 py-2.5 font-medium text-slate-600 bg-slate-50">Maximum Settlement</td><td className="px-4 py-2.5 font-bold text-slate-800">{steps.length > 0 ? Math.max(...steps.map(s => s.settlement)).toFixed(1) : '—'} mm</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Section 3: Results Summary */}
-                    <div>
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">03</span>
-                            <h3 className="text-xl font-bold text-slate-800">Analysis Results</h3>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            <div className="border-2 border-blue-100 rounded-lg p-5 text-center bg-blue-50/50">
-                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-2">Ultimate Capacity (Qult)</p>
-                                <p className="text-3xl font-black text-blue-700 font-mono">{analysis.ultimateCapacity ? analysis.ultimateCapacity.toLocaleString() : '—'}</p>
-                                <p className="text-xs text-blue-400 mt-1">kN</p>
-                            </div>
-                            <div className="border border-slate-200 rounded-lg p-5 text-center">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Max Settlement</p>
-                                <p className="text-3xl font-black text-slate-800 font-mono">{analysis.maxSettlement !== null ? analysis.maxSettlement.toFixed(1) : '—'}</p>
-                                <p className="text-xs text-slate-400 mt-1">mm</p>
-                            </div>
-                            <div className="border-2 border-emerald-100 rounded-lg p-5 text-center bg-emerald-50/50">
-                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-2">Safe Working Load (FS=2.5)</p>
-                                <p className="text-3xl font-black text-emerald-700 font-mono">{analysis.safeWorkLoad ? analysis.safeWorkLoad.toLocaleString() : '—'}</p>
-                                <p className="text-xs text-emerald-400 mt-1">kN</p>
-                            </div>
-                        </div>
-
-                        {analysis.ultimateCapacity && (
-                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 text-sm text-slate-600 leading-relaxed">
-                                <p className="font-bold text-slate-800 mb-2">Interpretation:</p>
-                                <p>
-                                    Using the <strong>{selectedMethod}</strong> interpretation method, the ultimate pile capacity is determined to be <strong>{analysis.ultimateCapacity.toLocaleString()} kN</strong>.
-                                    {analysis.maxSettlement !== null && <> The corresponding settlement at failure is <strong>{analysis.maxSettlement.toFixed(1)} mm</strong>, which is equivalent to <strong>{((analysis.maxSettlement / pileDiameter) * 100).toFixed(2)}%</strong> of the pile diameter.</>}
-                                    {' '}Applying a factor of safety of 2.5, the recommended safe working load is <strong>{analysis.safeWorkLoad?.toLocaleString()} kN</strong>.
-                                    {' '}The maximum applied test load of {Math.max(...steps.map(s => s.load)).toLocaleString()} kN represents <strong>{((Math.max(...steps.map(s => s.load)) / analysis.ultimateCapacity) * 100).toFixed(0)}%</strong> of the interpreted ultimate capacity.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* ─── PAGE 3: CHART & DATA ─── */}
-                <div className="bg-white shadow-xl print:shadow-none mb-4 print:mb-0 report-page p-10 lg:p-14" style={{ minHeight: '297mm' }}>
-                    {/* Section 4: Chart */}
-                    <div className="mb-10">
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">04</span>
-                            <h3 className="text-xl font-bold text-slate-800">{chart.title}</h3>
-                        </div>
-
-                        <div className="relative border border-slate-200 rounded-lg bg-white overflow-hidden" style={{ height: 380 }}>
-                            {/* Y labels */}
-                            <div className="absolute top-4 bottom-8 left-0 w-14 flex flex-col justify-between pointer-events-none">
-                                {[...yTicks].reverse().map((v, i) => (
-                                    <span key={`yt-${i}`} className="text-[9px] text-slate-500 text-right pr-1.5 font-mono leading-none">{fmtNum(v)}</span>
-                                ))}
-                            </div>
-                            {/* X labels */}
-                            <div className="absolute bottom-0 left-14 right-4 flex justify-between pointer-events-none pb-0.5">
-                                {xTicks.map((v, i) => (
-                                    <span key={`xt-${i}`} className="text-[9px] text-slate-500 font-mono leading-none">{fmtNum(v)}</span>
-                                ))}
-                            </div>
-                            {/* Axis labels */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-slate-500 font-medium">{chart.xLabel}</div>
-                            <div className="absolute top-1/2 left-0.5 -translate-y-1/2 -rotate-90 text-[8px] text-slate-500 font-medium whitespace-nowrap origin-center" style={{ width: 0 }}>{chart.yLabel}</div>
-
-                            <svg className="absolute top-4 left-14 right-4 bottom-8" viewBox="0 0 100 100" preserveAspectRatio="none" overflow="hidden">
-                                {yTicks.map((v, i) => <line key={`hg-${i}`} x1="0" y1={toY(v)} x2="100" y2={toY(v)} stroke="#e2e8f0" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />)}
-                                {xTicks.map((v, i) => <line key={`vg-${i}`} x1={toX(v)} y1="0" x2={toX(v)} y2="100" stroke="#e2e8f0" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />)}
-                                {chart.lines.map((line, idx) => (
-                                    <polyline key={`cl-${idx}`} points={line.points.map(p => `${toX(p.x)},${toY(p.y)}`).join(' ')}
-                                        fill="none" stroke={line.color} strokeWidth="1.5"
-                                        strokeDasharray={line.style === 'dashed' ? '6,4' : line.style === 'dotted' ? '2,3' : 'none'}
-                                        vectorEffect="non-scaling-stroke" />
-                                ))}
-                                {dp.length > 1 && <polyline points={dp.map(p => `${toX(p.x)},${toY(p.y)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
-                                {dp.map((p, i) => <circle key={`dp-${i}`} cx={toX(p.x)} cy={toY(p.y)} r="2.5" fill="#2563eb" stroke="#fff" strokeWidth="0.8" />)}
-                                {chart.markers.map((m, idx) => (
-                                    <g key={`mk-${idx}`}>
-                                        <circle cx={toX(m.x)} cy={toY(m.y)} r="6" fill="none" stroke="#dc2626" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                                        <line x1={toX(m.x)} y1={toY(m.y)} x2={toX(m.x)} y2="100" stroke="#dc2626" strokeWidth="0.5" strokeDasharray="3,4" vectorEffect="non-scaling-stroke" opacity="0.4" />
-                                        <line x1={toX(m.x)} y1={toY(m.y)} x2="0" y2={toY(m.y)} stroke="#dc2626" strokeWidth="0.5" strokeDasharray="3,4" vectorEffect="non-scaling-stroke" opacity="0.4" />
-                                    </g>
-                                ))}
-                            </svg>
-                        </div>
-                        {/* Legend */}
-                        <div className="flex flex-wrap gap-4 mt-3 text-[10px] text-slate-500">
-                            <div className="flex items-center gap-1.5"><div className="w-4 h-0.5 bg-blue-600 rounded"></div>Measured Data</div>
-                            {chart.lines.filter(l => l.label).map((line, idx) => (
-                                <div key={idx} className="flex items-center gap-1.5">
-                                    <div className="w-4 h-0.5" style={{ borderTop: `2px ${line.style === 'dashed' ? 'dashed' : line.style === 'dotted' ? 'dotted' : 'solid'} ${line.color}` }}></div>
-                                    {line.label}
+                        {/* Project info */}
+                        <div className="grid grid-cols-4 gap-4 border-t-2 border-slate-200 pt-6">
+                            {[
+                                ['Project', activeProject?.name || 'Unnamed'],
+                                ['Test Method', lt?.method || 'Static Axial (ASTM D1143)'],
+                                ['Pile Diameter', `${pileDiameter} mm`],
+                                ['Pile Length', `${pileLength} m`],
+                            ].map(([label, val]) => (
+                                <div key={label}>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+                                    <p className="text-xs font-bold text-slate-800">{val}</p>
                                 </div>
                             ))}
-                            {chart.markers.length > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full border-2 border-red-600"></div>Failure Point (Qult)</div>}
                         </div>
                     </div>
+                </PageShell>
 
-                    {/* Section 5: Load Schedule Data */}
-                    <div>
-                        <div className="flex items-center gap-3 mb-4 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">05</span>
-                            <h3 className="text-xl font-bold text-slate-800">Load Schedule Data</h3>
-                        </div>
-                        <table className="w-full text-sm border border-slate-200">
-                            <thead>
-                                <tr className="bg-slate-100 text-[10px] text-slate-500 uppercase tracking-wider">
-                                    <th className="px-4 py-2.5 text-left border-b border-slate-200">Step</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">Load (kN)</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">Settlement (mm)</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">Hold Time (min)</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">Δ/Q (mm/kN)</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {steps.filter(s => s.status === 'completed').map((s, i) => (
-                                    <tr key={i}>
-                                        <td className="px-4 py-2 text-slate-600 font-mono">{s.step}</td>
-                                        <td className="px-4 py-2 text-right font-mono font-bold text-slate-800">{s.load.toLocaleString()}</td>
-                                        <td className="px-4 py-2 text-right font-mono text-slate-700">{s.settlement.toFixed(2)}</td>
-                                        <td className="px-4 py-2 text-right font-mono text-slate-500">{s.holdTime}</td>
-                                        <td className="px-4 py-2 text-right font-mono text-slate-500">{s.load > 0 ? (s.settlement / s.load).toFixed(5) : '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                {/* ───── PAGE 2: METHOD + PARAMETERS + RESULTS ───── */}
+                <PageShell pageNum={2} totalPages={5}>
+                    {/* Section 01 */}
+                    <SectionHead num="01" title="Method Description" color="border-slate-400" />
+                    <div className="mb-4 text-[11px] text-slate-600 leading-relaxed space-y-2">
+                        <p><span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Theory: </span>{methodInfo.theory}</p>
+                        <p><span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Procedure: </span>{methodInfo.procedure}</p>
+                        <p><span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Notes: </span>{methodInfo.notes}</p>
                     </div>
-                </div>
 
-                {/* ─── PAGE 4: COMPARISON & CONCLUSION ─── */}
-                <div className="bg-white shadow-xl print:shadow-none mb-4 print:mb-0 p-10 lg:p-14" style={{ minHeight: '297mm' }}>
-                    {/* Section 6: Methods Comparison */}
-                    <div className="mb-10">
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">06</span>
-                            <h3 className="text-xl font-bold text-slate-800">Interpretation Methods Comparison</h3>
-                        </div>
-
-                        <table className="w-full text-sm border border-slate-200 mb-6">
-                            <thead>
-                                <tr className="bg-slate-100 text-[10px] text-slate-500 uppercase tracking-wider">
-                                    <th className="px-4 py-2.5 text-left border-b border-slate-200">Method</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">Qult (kN)</th>
-                                    <th className="px-4 py-2.5 text-right border-b border-slate-200">SWL (kN)</th>
-                                    <th className="px-4 py-2.5 text-center border-b border-slate-200">Chart Type</th>
+                    {/* Section 02 */}
+                    <SectionHead num="02" title="Test Parameters" color="border-emerald-500" />
+                    <table className="w-full text-[11px] border border-slate-200 mb-4">
+                        <tbody className="divide-y divide-slate-100">
+                            {[
+                                ['Pile Diameter (D)', `${pileDiameter} mm`],
+                                ['Pile Length (L)', `${pileLength} m`],
+                                ['Material', material],
+                                ['Interpretation Method', selectedMethod],
+                                ['Number of Load Steps', `${completedSteps.length}`],
+                                ['Maximum Applied Load', `${maxLoad.toLocaleString()} kN`],
+                                ['Maximum Settlement', `${maxSettle.toFixed(1)} mm`],
+                            ].map(([k, v], i) => (
+                                <tr key={i}>
+                                    <td className="px-3 py-1.5 font-medium text-slate-600 bg-slate-50 w-2/5">{k}</td>
+                                    <td className="px-3 py-1.5 font-bold text-slate-800">{v}</td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {allResults.map(({ method, result }, i) => (
-                                    <tr key={i} className={method === selectedMethod ? 'bg-blue-50 font-bold' : ''}>
-                                        <td className="px-4 py-2.5 text-slate-800">
-                                            {method === selectedMethod && <span className="text-blue-600 mr-1">▸</span>}
-                                            {method}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-right font-mono">{result.ultimateCapacity ? result.ultimateCapacity.toLocaleString() : '—'}</td>
-                                        <td className="px-4 py-2.5 text-right font-mono text-emerald-700">{result.safeWorkLoad ? result.safeWorkLoad.toLocaleString() : '—'}</td>
-                                        <td className="px-4 py-2.5 text-center text-slate-400 text-xs">{result.chart.type}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                            ))}
+                        </tbody>
+                    </table>
 
-                        {avgCapacity && minCapacity && maxCapacity && (
-                            <div className="grid grid-cols-3 gap-4 mb-6">
-                                <div className="border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Minimum Qult</p>
-                                    <p className="text-xl font-black text-slate-800 font-mono">{minCapacity.toLocaleString()} kN</p>
-                                </div>
-                                <div className="border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Average Qult</p>
-                                    <p className="text-xl font-black text-slate-800 font-mono">{avgCapacity.toLocaleString()} kN</p>
-                                </div>
-                                <div className="border border-slate-200 rounded-lg p-4 text-center">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Maximum Qult</p>
-                                    <p className="text-xl font-black text-slate-800 font-mono">{maxCapacity.toLocaleString()} kN</p>
-                                </div>
+                    {/* Section 03 — Results */}
+                    <SectionHead num="03" title="Analysis Results" color="border-blue-600" />
+                    <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div className="border-2 border-blue-100 rounded-lg p-3 text-center bg-blue-50/50">
+                            <p className="text-[9px] font-bold text-blue-500 uppercase tracking-wider mb-1">Ultimate Capacity (Qult)</p>
+                            <p className="text-2xl font-black text-blue-700 font-mono">{analysis.ultimateCapacity ? analysis.ultimateCapacity.toLocaleString() : '—'}</p>
+                            <p className="text-[9px] text-blue-400">kN</p>
+                        </div>
+                        <div className="border border-slate-200 rounded-lg p-3 text-center">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Max Settlement</p>
+                            <p className="text-2xl font-black text-slate-800 font-mono">{analysis.maxSettlement !== null ? analysis.maxSettlement.toFixed(1) : '—'}</p>
+                            <p className="text-[9px] text-slate-400">mm</p>
+                        </div>
+                        <div className="border-2 border-emerald-100 rounded-lg p-3 text-center bg-emerald-50/50">
+                            <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider mb-1">Safe Working Load (FS=2.5)</p>
+                            <p className="text-2xl font-black text-emerald-700 font-mono">{analysis.safeWorkLoad ? analysis.safeWorkLoad.toLocaleString() : '—'}</p>
+                            <p className="text-[9px] text-emerald-400">kN</p>
+                        </div>
+                    </div>
+                    {analysis.ultimateCapacity && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 leading-relaxed">
+                            <p className="font-bold text-slate-800 mb-1 text-xs">Interpretation:</p>
+                            <p>
+                                Using the <strong>{selectedMethod}</strong> method, the ultimate pile capacity is <strong>{analysis.ultimateCapacity.toLocaleString()} kN</strong>.
+                                {analysis.maxSettlement !== null && <> Settlement at failure is <strong>{analysis.maxSettlement.toFixed(1)} mm</strong> ({((analysis.maxSettlement / pileDiameter) * 100).toFixed(2)}% of pile diameter).</>}
+                                {' '}With FS=2.5, the safe working load is <strong>{analysis.safeWorkLoad?.toLocaleString()} kN</strong>.
+                                {' '}The maximum test load of {maxLoad.toLocaleString()} kN represents <strong>{((maxLoad / analysis.ultimateCapacity) * 100).toFixed(0)}%</strong> of the interpreted capacity.
+                            </p>
+                        </div>
+                    )}
+                </PageShell>
+
+                {/* ───── PAGE 3: CHART (full page) ───── */}
+                <PageShell pageNum={3} totalPages={5}>
+                    <SectionHead num="04" title={chart.title} color="border-indigo-500" />
+
+                    {/* Chart — fills page, clipped via SVG clipPath */}
+                    <div className="relative border border-slate-200 rounded-lg bg-white overflow-hidden" style={{ height: 650 }}>
+                        {/* Y-axis labels */}
+                        <div className="absolute top-3 bottom-8 left-0 w-14 flex flex-col justify-between pointer-events-none">
+                            {[...yTicks].reverse().map((v, i) => (
+                                <span key={`yt-${i}`} className="text-[9px] text-slate-500 text-right pr-1 font-mono leading-none">{fmtNum(v)}</span>
+                            ))}
+                        </div>
+                        {/* X-axis labels */}
+                        <div className="absolute bottom-1 left-14 right-4 flex justify-between pointer-events-none">
+                            {xTicks.map((v, i) => (
+                                <span key={`xt-${i}`} className="text-[9px] text-slate-500 font-mono leading-none">{fmtNum(v)}</span>
+                            ))}
+                        </div>
+                        {/* Axis labels */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[8px] text-slate-400 font-medium">{chart.xLabel || 'Settlement (mm)'}</div>
+                        <div className="absolute top-1/2 left-0.5 -translate-y-1/2 -rotate-90 text-[8px] text-slate-400 font-medium whitespace-nowrap origin-center" style={{ width: 0 }}>{chart.yLabel}</div>
+
+                        {/* SVG plot area with clipPath */}
+                        <svg className="absolute top-3 left-14 right-4 bottom-8" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <defs>
+                                <clipPath id="chart-clip"><rect x="0" y="0" width="100" height="100" /></clipPath>
+                            </defs>
+                            <g clipPath="url(#chart-clip)">
+                                {/* Grid */}
+                                {yTicks.map((v, i) => <line key={`hg-${i}`} x1="0" y1={toY(v)} x2="100" y2={toY(v)} stroke="#e2e8f0" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />)}
+                                {xTicks.map((v, i) => <line key={`vg-${i}`} x1={toX(v)} y1="0" x2={toX(v)} y2="100" stroke="#e2e8f0" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />)}
+                                {/* Y-axis line if negative x values exist */}
+                                {xMin < 0 && <line x1={toX(0)} y1="0" x2={toX(0)} y2="100" stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
+                                {/* ALL construction lines */}
+                                {allChartLines.map((line, idx) => (
+                                    <polyline key={`cl-${idx}`} points={line.points.map(p => `${toX(p.x)},${toY(p.y)}`).join(' ')}
+                                        fill="none" stroke={line.color} strokeWidth="1.2"
+                                        strokeDasharray={line.style === 'dashed' ? '5,3' : line.style === 'dotted' ? '2,2' : 'none'}
+                                        vectorEffect="non-scaling-stroke" />
+                                ))}
+                                {/* Data curve */}
+                                {dp.length > 1 && <polyline points={dp.map(p => `${toX(p.x)},${toY(p.y)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
+                                {dp.map((p, i) => <circle key={`dp-${i}`} cx={toX(p.x)} cy={toY(p.y)} r="2.5" fill="#2563eb" stroke="#fff" strokeWidth="0.6" />)}
+                                {/* Failure markers */}
+                                {chart.markers.map((m, idx) => {
+                                    const mx = toX(m.x), my = toY(m.y);
+                                    return (
+                                        <g key={`mk-${idx}`}>
+                                            <circle cx={mx} cy={my} r="5" fill="none" stroke="#dc2626" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                                            <line x1={mx} y1={my} x2={mx} y2="100" stroke="#dc2626" strokeWidth="0.5" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" opacity="0.4" />
+                                            <line x1={mx} y1={my} x2="0" y2={my} stroke="#dc2626" strokeWidth="0.5" strokeDasharray="3,3" vectorEffect="non-scaling-stroke" opacity="0.4" />
+                                        </g>
+                                    );
+                                })}
+                            </g>
+                        </svg>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex flex-wrap gap-3 mt-3 text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1.5"><div className="w-4 h-0.5 bg-blue-600 rounded"></div>Measured Data</div>
+                        {allChartLines.filter(l => l.label).map((line, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5">
+                                <div className="w-4 h-[1px]" style={{ borderTop: `2px ${line.style === 'dashed' ? 'dashed' : line.style === 'dotted' ? 'dotted' : 'solid'} ${line.color}` }}></div>
+                                {line.label}
                             </div>
+                        ))}
+                        {chart.markers.length > 0 && <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full border-[1.5px] border-red-600"></div>Failure Point (Qult)</div>}
+                    </div>
+                </PageShell>
+
+                {/* ───── PAGE 4: DATA TABLE ───── */}
+                <PageShell pageNum={4} totalPages={5}>
+                    <SectionHead num="05" title="Load Schedule Data" color="border-amber-500" />
+                    <table className="w-full text-sm border border-slate-200">
+                        <thead>
+                            <tr className="bg-slate-800 text-[10px] text-white uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left border-b border-slate-700 font-semibold">Step</th>
+                                <th className="px-4 py-3 text-right border-b border-slate-700 font-semibold">Load (kN)</th>
+                                <th className="px-4 py-3 text-right border-b border-slate-700 font-semibold">Settlement (mm)</th>
+                                <th className="px-4 py-3 text-right border-b border-slate-700 font-semibold">Hold Time (min)</th>
+                                <th className="px-4 py-3 text-right border-b border-slate-700 font-semibold">Δ/Q (mm/kN)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {completedSteps.map((s, i) => (
+                                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                    <td className="px-4 py-3 text-slate-500 font-mono border-b border-slate-100">{s.step}</td>
+                                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 border-b border-slate-100">{s.load.toLocaleString()}</td>
+                                    <td className="px-4 py-3 text-right font-mono text-slate-700 border-b border-slate-100">{s.settlement.toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-right font-mono text-slate-500 border-b border-slate-100">{s.holdTime}</td>
+                                    <td className="px-4 py-3 text-right font-mono text-slate-500 border-b border-slate-100">{s.load > 0 ? (s.settlement / s.load).toFixed(5) : '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </PageShell>
+
+                {/* ───── PAGE 5: COMPARISON + CONCLUSIONS ───── */}
+                <PageShell pageNum={5} totalPages={5}>
+                    <SectionHead num="06" title="Interpretation Methods Comparison" color="border-violet-500" />
+                    <table className="w-full text-[11px] border border-slate-200 mb-4">
+                        <thead>
+                            <tr className="bg-slate-100 text-[8px] text-slate-500 uppercase tracking-wider">
+                                <th className="px-3 py-2 text-left border-b border-slate-200">Method</th>
+                                <th className="px-3 py-2 text-right border-b border-slate-200">Qult (kN)</th>
+                                <th className="px-3 py-2 text-right border-b border-slate-200">SWL (kN)</th>
+                                <th className="px-3 py-2 text-center border-b border-slate-200">Chart Type</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {allResults.map(({ method, result }, i) => (
+                                <tr key={i} className={method === selectedMethod ? 'bg-blue-50 font-bold' : ''}>
+                                    <td className="px-3 py-1.5 text-slate-800">
+                                        {method === selectedMethod && <span className="text-blue-600 mr-1">▸</span>}
+                                        {method}
+                                    </td>
+                                    <td className="px-3 py-1.5 text-right font-mono">{result.ultimateCapacity ? result.ultimateCapacity.toLocaleString() : '—'}</td>
+                                    <td className="px-3 py-1.5 text-right font-mono text-emerald-700">{result.safeWorkLoad ? result.safeWorkLoad.toLocaleString() : '—'}</td>
+                                    <td className="px-3 py-1.5 text-center text-slate-400 text-[9px]">{result.chart.type}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {avgCapacity && minCapacity && maxCapacity && (
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            {[['Minimum Qult', minCapacity], ['Average Qult', avgCapacity], ['Maximum Qult', maxCapacity]].map(([label, val]) => (
+                                <div key={label as string} className="border border-slate-200 rounded-lg p-3 text-center">
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase mb-0.5">{label as string}</p>
+                                    <p className="text-lg font-black text-slate-800 font-mono">{(val as number).toLocaleString()} kN</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <SectionHead num="07" title="Engineering Conclusions & Recommendations" color="border-rose-500" />
+                    <div className="space-y-2 text-[11px] text-slate-600 leading-relaxed">
+                        {analysis.ultimateCapacity && avgCapacity && minCapacity && maxCapacity ? (
+                            <>
+                                <p>
+                                    <strong>1. Ultimate Capacity:</strong> The pile load test was conducted on a {pileDiameter} mm diameter, {pileLength} m long {material.toLowerCase()} pile.
+                                    The test consisted of {completedSteps.length} load increments reaching a maximum load of {maxLoad.toLocaleString()} kN
+                                    with a maximum settlement of {maxSettle.toFixed(1)} mm.
+                                </p>
+                                <p>
+                                    <strong>2. Method-Specific Result:</strong> Using the <em>{selectedMethod}</em> criterion, the ultimate pile capacity is <strong>{analysis.ultimateCapacity.toLocaleString()} kN</strong>.
+                                    {analysis.maxSettlement !== null && <> The settlement at failure is {analysis.maxSettlement.toFixed(1)} mm ({((analysis.maxSettlement / pileDiameter) * 100).toFixed(2)}% of pile diameter).</>}
+                                </p>
+                                <p>
+                                    <strong>3. Multi-Method Comparison:</strong> Across {capacityValues.length} methods, the capacity ranges from {minCapacity.toLocaleString()} kN to {maxCapacity.toLocaleString()} kN
+                                    (mean: {avgCapacity.toLocaleString()} kN, CoV: {((Math.sqrt(allResults.map(r => r.result.ultimateCapacity).filter((v): v is number => v !== null).reduce((acc, v) => acc + (v - avgCapacity) ** 2, 0) / capacityValues.length) / avgCapacity) * 100).toFixed(1)}%).
+                                </p>
+                                <p>
+                                    <strong>4. Recommended Design Load:</strong> With FS=2.5, the recommended allowable load is <strong>{analysis.safeWorkLoad?.toLocaleString()} kN</strong>.
+                                    For critical structures, using the minimum capacity ({minCapacity.toLocaleString()} kN) yields an allowable load of {Math.round(minCapacity / 2.5).toLocaleString()} kN.
+                                </p>
+                                <p>
+                                    <strong>5. Settlement Performance:</strong> Under the recommended load, settlement is expected within allowable limits.
+                                    At maximum test load, the settlement-to-diameter ratio was {((maxSettle / pileDiameter) * 100).toFixed(2)}%.
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-slate-400 italic">Insufficient data to generate conclusions. Please run the simulation first.</p>
                         )}
                     </div>
+                </PageShell>
 
-                    {/* Section 7: Engineering Conclusions */}
-                    <div className="mb-10">
-                        <div className="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
-                            <span className="text-2xl font-black text-slate-300">07</span>
-                            <h3 className="text-xl font-bold text-slate-800">Engineering Conclusions & Recommendations</h3>
-                        </div>
-
-                        <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
-                            {analysis.ultimateCapacity && avgCapacity && minCapacity && maxCapacity ? (
-                                <>
-                                    <p>
-                                        <strong>1. Ultimate Capacity:</strong> The pile load test was conducted on a {pileDiameter} mm diameter, {pileLength} m long {material.toLowerCase()} pile.
-                                        The test consisted of {steps.filter(s => s.status === 'completed').length} load increments reaching a maximum applied load of {Math.max(...steps.map(s => s.load)).toLocaleString()} kN
-                                        with a corresponding maximum settlement of {Math.max(...steps.map(s => s.settlement)).toFixed(1)} mm.
-                                    </p>
-                                    <p>
-                                        <strong>2. Method-Specific Result:</strong> Using the <em>{selectedMethod}</em> interpretation criterion, the ultimate pile capacity is determined as <strong>{analysis.ultimateCapacity.toLocaleString()} kN</strong>.
-                                        {analysis.maxSettlement !== null && <> The settlement at the interpreted failure load is {analysis.maxSettlement.toFixed(1)} mm ({((analysis.maxSettlement / pileDiameter) * 100).toFixed(2)}% of pile diameter).</>}
-                                    </p>
-                                    <p>
-                                        <strong>3. Multi-Method Comparison:</strong> Across all {capacityValues.length} applicable interpretation methods, the ultimate capacity ranges from {minCapacity.toLocaleString()} kN to {maxCapacity.toLocaleString()} kN,
-                                        with an arithmetic mean of {avgCapacity.toLocaleString()} kN. The coefficient of variation is {((Math.sqrt(allResults.map(r => r.result.ultimateCapacity).filter((v): v is number => v !== null).reduce((acc, v) => acc + (v - avgCapacity) ** 2, 0) / capacityValues.length) / avgCapacity) * 100).toFixed(1)}%,
-                                        indicating {((Math.sqrt(allResults.map(r => r.result.ultimateCapacity).filter((v): v is number => v !== null).reduce((acc, v) => acc + (v - avgCapacity) ** 2, 0) / capacityValues.length) / avgCapacity) * 100) < 15 ? 'good consistency' : 'moderate variability'} among the different interpretation methods.
-                                    </p>
-                                    <p>
-                                        <strong>4. Recommended Design Load:</strong> Adopting the <em>{selectedMethod}</em> result with a factor of safety (FS) of 2.5, the recommended allowable (safe working) load is <strong>{analysis.safeWorkLoad?.toLocaleString()} kN</strong>.
-                                        For critical structures, the engineer may consider using the minimum interpreted capacity ({minCapacity.toLocaleString()} kN) divided by the required FS, yielding an allowable load of {Math.round(minCapacity / 2.5).toLocaleString()} kN.
-                                    </p>
-                                    <p>
-                                        <strong>5. Settlement Performance:</strong> Under the recommended safe working load of {analysis.safeWorkLoad?.toLocaleString()} kN, the anticipated settlement
-                                        is expected to remain well within the allowable limits for typical structures. At the maximum test load, the settlement-to-diameter ratio was {((Math.max(...steps.map(s => s.settlement)) / pileDiameter) * 100).toFixed(2)}%.
-                                    </p>
-                                </>
-                            ) : (
-                                <p className="text-slate-400 italic">Insufficient data to generate conclusions. Please run the simulation in the Load Test Lab first and ensure at least the first few steps are completed.</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="border-t-2 border-slate-200 pt-6 mt-auto">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                            <div>
-                                <p className="font-bold text-slate-500">GeoPile Pro Engineering Suite v2.4</p>
-                                <p>This report was generated automatically and should be reviewed by a qualified engineer.</p>
-                            </div>
-                            <div className="text-right">
-                                <p>{today}</p>
-                                <p>Page 4 of 4</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

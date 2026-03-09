@@ -21,6 +21,7 @@ export interface ChartLine {
     points: { x: number; y: number }[];
     style: 'dashed' | 'solid' | 'dotted';
     color: string;
+    showArrow?: boolean;
 }
 
 export interface ChartMarker {
@@ -47,13 +48,18 @@ export interface AnalysisResult {
 // ─────────────────────────────────────────────────
 // 1. Davisson Offset Limit
 // ─────────────────────────────────────────────────
-export function calculateDavisson(steps: LoadTestStep[], pileDiameter: number, pileLength: number): AnalysisResult {
+export function calculateDavisson(steps: LoadTestStep[], pileDiameter: number, pileLength: number, pileArea?: number, elasticModulus?: number): AnalysisResult {
     const cs = steps.filter(s => s.status === 'completed');
     if (cs.length < 2) return emptyResult('load-settlement', 'Davisson', 'Settlement (mm)', 'Load (kN)');
 
     const D_m = pileDiameter / 1000;
     const davissonOffset = 3.81 + (D_m * 1000) / 120;
-    const AE = Math.PI * (D_m / 2) ** 2 * 30e6;
+    // Convert all to consistent units:
+    //   A in m², E in kN/m² → AE in kN
+    //   Δ_mm = (Q × L_m) / (A_m² × E_kN/m²) × 1000
+    const A_m2 = pileArea ? pileArea / 1e6 : Math.PI * (D_m / 2) ** 2;
+    const E_kNm2 = (elasticModulus || 30000) * 1000; // MPa → kN/m²
+    const AE = A_m2 * E_kNm2;
 
     const elasticLine = cs.map(s => ({
         load: s.load,
@@ -110,10 +116,15 @@ export function calculateChin(steps: LoadTestStep[]): AnalysisResult {
     // Plot S/Q vs S → straight line with slope C1
     const dataPoints = cs.map(s => ({ x: s.settlement, y: s.settlement / s.load }));
 
-    // Linear regression
+    // Use tail regression: only points where load > 50% of max load (standard Chin practice)
+    const maxLoad = Math.max(...cs.map(s => s.load));
+    let tailPts = cs.filter(s => s.load > maxLoad * 0.5);
+    if (tailPts.length < 2) tailPts = cs; // fallback to all
+
+    // Linear regression on tail points
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    const n = cs.length;
-    cs.forEach(s => {
+    const n = tailPts.length;
+    tailPts.forEach(s => {
         const x = s.settlement;
         const y = s.settlement / s.load;
         sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x;
@@ -210,10 +221,13 @@ export function calculateDeBeer(steps: LoadTestStep[]): AnalysisResult {
 // ─────────────────────────────────────────────────
 export function calculateBrinchHansen(steps: LoadTestStep[], type: '90%' | '80%'): AnalysisResult {
     const cs = steps.filter(s => s.status === 'completed' && s.load > 0 && s.settlement > 0);
-    if (cs.length < 3) return emptyResult('brinch-hansen-sqrt', `Brinch Hansen ${type}`, '√S (√mm)', 'S/Q (mm/kN)');
+    if (cs.length < 3) return emptyResult('brinch-hansen-sqrt', `Brinch Hansen ${type}`, 'Settlement Δ (mm)', '√Δ / Q');
 
-    // Plot √S (x) vs S/Q (y).
-    const dataPoints = cs.map(s => ({ x: Math.sqrt(s.settlement), y: s.settlement / s.load }));
+    // Textbook (Prakash & Sharma, 1990, Eq 9.3):
+    //   Plot x = Δ (settlement), y = √Δ / Q
+    //   Regression: √Δ/Q = C₁Δ + C₂
+    //   BH 80%: Qu = 1 / (2√(C₁·C₂)),  Δ_v = C₂/C₁
+    const dataPoints = cs.map(s => ({ x: s.settlement, y: Math.sqrt(s.settlement) / s.load }));
 
     // Linear regression on all points: y = C1*x + C2
     let sx = 0, sy = 0, sxy = 0, sx2 = 0;
@@ -222,63 +236,70 @@ export function calculateBrinchHansen(steps: LoadTestStep[], type: '90%' | '80%'
     const C1 = (nn * sxy - sx * sy) / (nn * sx2 - sx * sx);
     const C2 = (sy - C1 * sx) / nn;
 
-    // Brinch Hansen 80%: Qu = 1 / (2 * sqrt(C1 * C2))
-    // Brinch Hansen 90%: Qu = 1 / (2 * sqrt(C1 * C2)) * correction
-    // Actually both use the same formula but with different interpretations
-    // 80%: Qu = 1/(2*sqrt(C1*C2)), Su = C2/C1
-    // 90%: criterion is S_Q = 2 * S_(0.9Q), which often gives a similar result
-
     let Qult: number | null = null;
     let Sf: number | null = null;
 
-    if (C1 > 0 && C2 > 0) {
-        if (type === '80%') {
+    if (type === '80%') {
+        // BH 80%: Qu = 1 / (2√(C₁·C₂))   [Eq. 9.3a]
+        //         Δ_v = C₂/C₁               [Eq. 9.3b]
+        if (C1 > 0 && C2 > 0) {
             Qult = 1 / (2 * Math.sqrt(C1 * C2));
-            Sf = C2 / C1; // settlement at failure (Sf = C2/C1 in sqrt terms, so actual Sf = (C2/C1)^2)
-            Sf = (C2 / C1) ** 2;
+            Sf = C2 / C1;
         } else {
-            // 90% criterion: Qu where S = 2 * S(0.9*Qu)
-            // Use iterative approach with the actual interpolated curve
+            // Graphical fallback: use max applied load
             const maxLoad = Math.max(...cs.map(s => s.load));
-            const minLoad = maxLoad * 0.3; // start scanning from 30% of max load
-            function getSettlementAtLoad(q: number): number | null {
-                if (q <= 0) return 0;
-                for (let i = 1; i < cs.length; i++) {
-                    if (cs[i].load >= q) {
-                        const prev = cs[i - 1], curr = cs[i];
-                        if (curr.load === prev.load) return curr.settlement;
-                        return prev.settlement + (curr.settlement - prev.settlement) * ((q - prev.load) / (curr.load - prev.load));
-                    }
+            const maxS = Math.max(...cs.map(s => s.settlement));
+            Qult = maxLoad;
+            Sf = maxS;
+        }
+    } else {
+        // BH 90% criterion (trial & error):
+        //   Find (Q_v)ult where Δ(Q_ult) = 2 × Δ(0.9 × Q_ult)
+        const maxLoad = Math.max(...cs.map(s => s.load));
+        const minLoad = maxLoad * 0.3;
+        function getSettlementAtLoad(q: number): number | null {
+            if (q <= 0) return 0;
+            for (let i = 1; i < cs.length; i++) {
+                if (cs[i].load >= q) {
+                    const prev = cs[i - 1], curr = cs[i];
+                    if (curr.load === prev.load) return curr.settlement;
+                    return prev.settlement + (curr.settlement - prev.settlement) * ((q - prev.load) / (curr.load - prev.load));
                 }
-                return null;
             }
-            for (let q = minLoad; q <= maxLoad; q += maxLoad / 500) {
-                const sq = getSettlementAtLoad(q);
-                const sq90 = getSettlementAtLoad(q * 0.9);
-                if (sq !== null && sq90 !== null && sq90 > 0 && sq >= 2 * sq90) {
-                    Qult = q; Sf = sq; break;
-                }
+            return null;
+        }
+        let foundIterative = false;
+        for (let q = minLoad; q <= maxLoad; q += maxLoad / 500) {
+            const sq = getSettlementAtLoad(q);
+            const sq90 = getSettlementAtLoad(q * 0.9);
+            if (sq !== null && sq90 !== null && sq90 > 0 && sq >= 2 * sq90) {
+                Qult = q; Sf = sq; foundIterative = true; break;
             }
+        }
+        // Fallback when criterion isn't met within data range
+        if (!foundIterative) {
+            Qult = maxLoad / 0.9;
+            Sf = Math.max(...cs.map(s => s.settlement));
         }
     }
 
     const xMin = Math.min(...dataPoints.map(p => p.x));
     const xMax = Math.max(...dataPoints.map(p => p.x)) * 1.2;
     const fitLine: ChartLine = {
-        label: `C₁=${C1.toFixed(5)}, C₂=${C2.toFixed(5)}`,
+        label: `C₁=${C1.toFixed(6)}, C₂=${C2.toFixed(5)}`,
         points: [{ x: xMin, y: C1 * xMin + C2 }, { x: xMax, y: C1 * xMax + C2 }],
         style: 'dashed', color: '#f59e0b',
     };
 
     const markers: ChartMarker[] = Qult && Sf
-        ? [{ x: Math.sqrt(Sf), y: Sf / Qult, label: `Qult = ${Math.round(Qult)} kN`, color: '#ef4444' }]
+        ? [{ x: Sf, y: Math.sqrt(Sf) / Qult, label: `Qult = ${Math.round(Qult)} kN`, color: '#ef4444' }]
         : [];
 
     return buildResult(cs, Qult, Sf, {
         type: 'brinch-hansen-sqrt',
         title: `Brinch Hansen ${type} Criterion`,
-        xLabel: '√Settlement (√mm)',
-        yLabel: 'S/Q (mm/kN)',
+        xLabel: 'Settlement Δ (mm)',
+        yLabel: '√Δ / Q',
         dataPoints,
         lines: [fitLine],
         markers,
@@ -309,6 +330,7 @@ export function calculateMazurkiewicz(steps: LoadTestStep[]): AnalysisResult {
     }
 
     const qVals: { s: number; q: number }[] = [];
+    qVals.push({ s: 0, q: 0 }); // Origin
     for (let i = 1; i <= nIntervals; i++) {
         const s = i * dS;
         const q = getLoadAtSettlement(s);
@@ -316,62 +338,114 @@ export function calculateMazurkiewicz(steps: LoadTestStep[]): AnalysisResult {
     }
     if (qVals.length < 3) return emptyResult('load-settlement', 'Mazurkiewicz', 'Settlement (mm)', 'Load (kN)');
 
-    // Construction lines: vertical from equal settlements, horizontal to load axis
     const constructionLines: ChartLine[] = [];
-    // Vertical lines at equal settlements
-    for (const v of qVals) {
-        constructionLines.push({
-            label: '',
-            points: [{ x: v.s, y: 0 }, { x: v.s, y: v.q }],
-            style: 'dotted', color: '#64748b',
-        });
-        // Horizontal from curve to load axis
-        constructionLines.push({
-            label: '',
-            points: [{ x: v.s, y: v.q }, { x: 0, y: v.q }],
-            style: 'dotted', color: '#64748b',
-        });
+    
+    // Scale k for visual purposes to place the left side points clearly.
+    // Let's make the maximum deltaQ take up ~45% of the maxSettle width.
+    let maxDelta = 0;
+    for(let i=0; i<qVals.length-1; i++) {
+        maxDelta = Math.max(maxDelta, qVals[i+1].q - qVals[i].q);
     }
+    const k = maxDelta > 0 ? (maxSettle * 0.45) / maxDelta : 1;
 
-    // 45° line intersections: from (0, Q_i) draw 45° to intersect vertical at Q_{i+1}
-    // In load-settlement space: intersection points (Q_{i+1} - Q_i, Q_i) but let's use geometric approach
     const intersections: { x: number; y: number }[] = [];
+    const dxs = [0];
+
+    // Build left-side point sequence for intersections
     for (let i = 0; i < qVals.length - 1; i++) {
-        // 45° from Q_i on load axis: y = x + Q_i (settlement, load coords, where x=settlement-axis)
-        // or more precisely, in load terms: from point (0, Q_i), slope +1 scaled
-        // Mazurkiewicz in load-space: from (0, Q_i) draw 45° line (slope=1 in scaled space)
-        // Intersect vertical at settlement = qVals[i+1].s
-        // y = Q_i + (x - 0) * (maxLoad/maxSettle) -> not quite, it's a 45° in same unit space
-        // For simplicity: intersection point = (Q_{i+1}, Q_i) plotted in Q_n vs Q_{n-1} space
-        intersections.push({ x: qVals[i + 1].q, y: qVals[i].q });
+        const q_i = qVals[i].q;
+        const q_next = qVals[i+1].q;
+        const dx = -k * (q_next - q_i);
+        intersections.push({ x: dx, y: q_next });
+        dxs.push(dx); // dxs[i+1] is the left extent of triangle i
     }
 
-    // Fit line to intersections and find where it crosses y=x (Qult)
+    // 1. Horizontal lines from right curve to left diagram
+    for (let i = 1; i < qVals.length; i++) {
+        const q = qVals[i].q;
+        const s = qVals[i].s;
+        
+        let leftLimit = dxs[i];
+        if (i < qVals.length - 1) {
+            leftLimit = Math.min(dxs[i], dxs[i+1]);
+        }
+        
+        // Base line crossing y-axis
+        constructionLines.push({
+            label: '',
+            points: [{ x: s, y: q }, { x: leftLimit, y: q }],
+            style: 'solid', color: '#cbd5e1', showArrow: false,
+        });
+
+        // Invisible line strictly for adding the left-pointing arrowhead at the y-axis
+        constructionLines.push({
+            label: '',
+            points: [{ x: s, y: q }, { x: 0, y: q }],
+            style: 'solid', color: 'transparent', showArrow: true,
+        });
+    }
+
+    // 2. Vertical lines from curve down to settlement axis
+    for (let i = 1; i < qVals.length; i++) {
+        constructionLines.push({
+            label: '',
+            points: [{ x: qVals[i].s, y: qVals[i].q }, { x: qVals[i].s, y: 0 }],
+            style: 'dashed', color: '#94a3b8', showArrow: true,
+        });
+    }
+
+    // 3. Mazurkiewicz Projection Triangles (Left Side)
+    for (let i = 0; i < qVals.length - 1; i++) {
+        const q_i = qVals[i].q;
+        const q_next = qVals[i+1].q;
+        const dx = dxs[i+1];
+        
+        // Diagonal from origin (or previous step on Load axis) up-left
+        constructionLines.push({
+            label: '',
+            points: [{ x: 0, y: q_i }, { x: dx, y: q_next }],
+            style: 'solid', color: '#3b82f6', showArrow: true, // blue line, arrow up-left
+        });
+
+        // Vertical drop from intersection down to horizontal base of Q_i
+        constructionLines.push({
+            label: '',
+            points: [{ x: dx, y: q_next }, { x: dx, y: q_i }],
+            style: 'solid', color: '#3b82f6', showArrow: true,
+        });
+    }
+
+    // Fit straight line through intersection points to find Qult
     let sx = 0, sy = 0, sxy = 0, sx2 = 0;
     intersections.forEach(p => { sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x; });
     const nn = intersections.length;
-    const mLine = (nn * sxy - sx * sy) / (nn * sx2 - sx * sx);
-    const bLine = (sy - mLine * sx) / nn;
-
     let Qult: number | null = null;
-    if (Math.abs(1 - mLine) > 0.001) {
-        Qult = bLine / (1 - mLine);
-    }
+    
+    if (nn > 1) {
+        const mLine = (nn * sxy - sx * sy) / (nn * sx2 - sx * sx);
+        const bLine = (sy - mLine * sx) / nn;
+        Qult = bLine;
 
-    // Draw the extrapolated line on the load-settlement chart as a visual
-    // The 45° construction is abstract — we'll show settlement lines + failure marker
-    if (Qult && Qult > 0) {
+        const minX = Math.min(...intersections.map(p => p.x));
+        const xExt = minX * 1.2;
         constructionLines.push({
-            label: 'Extrapolated Qult',
-            points: [{ x: 0, y: Qult }, { x: maxSettle, y: Qult }],
-            style: 'dashed', color: '#ef4444',
+            label: 'Failure Projection',
+            points: [{ x: xExt, y: mLine * xExt + bLine }, { x: 0, y: bLine }],
+            style: 'dashed', color: '#ef4444', showArrow: true,
+        });
+        
+        // Dashed line showing ultimate load asymptote
+        constructionLines.push({
+            label: '',
+            points: [{ x: 0, y: bLine }, { x: maxSettle, y: bLine }],
+            style: 'dashed', color: '#ef4444', showArrow: false,
         });
     }
 
     return buildResult(cs, Qult, null, {
         type: 'load-settlement',
         title: "Mazurkiewicz's Method",
-        xLabel: 'Settlement (mm)',
+        xLabel: '<- Projection Diagram | Load Test Data ->',
         yLabel: 'Load (kN)',
         dataPoints: cs.map(s => ({ x: s.settlement, y: s.load })),
         lines: constructionLines,
@@ -386,23 +460,63 @@ export function calculateFullerHoy(steps: LoadTestStep[]): AnalysisResult {
     const cs = steps.filter(s => s.status === 'completed');
     if (cs.length < 3) return emptyResult('load-settlement', 'Fuller & Hoy', 'Settlement (mm)', 'Load (kN)');
 
-    // 0.05 in/ton ≈ 0.1427 mm/kN → dQ/dS = 7.00 kN/mm
-    const targetSlope = 1 / 0.1427;
+    // 0.05 in/ton: 0.05 in = 1.27 mm, 1 ton = 8.896 kN 
+    // dQ/dS = 8.896 / 1.27 ≈ 7.005 kN/mm
+    const targetSlope = 8.89644 / 1.27;
     let Qult: number | null = null, Sf: number | null = null;
+    let tangentB: number | null = null;
 
+    // 1. Try to find the exact tangent point in raw data
     for (let i = 1; i < cs.length; i++) {
         const slope = (cs[i].load - cs[i - 1].load) / (cs[i].settlement - cs[i - 1].settlement);
         if (slope <= targetSlope) {
+            tangentB = cs[i].load - targetSlope * cs[i].settlement;
             Qult = cs[i].load;
             Sf = cs[i].settlement;
             break;
         }
     }
 
+    let extrapolated = false;
+    let extrapLine: ChartLine | null = null;
+
+    // 2. Extrapolate using hyperbolic fit (Chin's) if not found
+    if (Qult === null) {
+        const dataPoints = cs.filter(s => s.load > 0 && s.settlement > 0).map(s => ({ x: s.settlement, y: s.settlement / s.load }));
+        if (dataPoints.length >= 3) {
+            let sx = 0, sy = 0, sxy = 0, sx2 = 0;
+            dataPoints.forEach(p => { sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x; });
+            const nn = dataPoints.length;
+            const C1 = (nn * sxy - sx * sy) / (nn * sx2 - sx * sx);
+            const C2 = (sy - C1 * sx) / nn;
+            
+            // Hyperbola: Q = S / (C1*S + C2), dQ/dS = C2 / (C1*S + C2)²
+            if (C1 > 0 && C2 > 0 && C2 / targetSlope > 0) {
+                const sqrtTerm = Math.sqrt(C2 / targetSlope);
+                const Se = (sqrtTerm - C2) / C1;
+                if (Se > 0) {
+                    const Qe = Se / (C1 * Se + C2);
+                    Qult = Qe;
+                    Sf = Se;
+                    tangentB = Qe - targetSlope * Se;
+                    extrapolated = true;
+
+                    const maxS = Math.max(...cs.map(s => s.settlement));
+                    const extLinePts = [];
+                    for(let s = maxS; s <= Se * 1.05; s += (Se - maxS) / 10) {
+                        extLinePts.push({ x: s, y: s / (C1 * s + C2) });
+                    }
+                    extrapLine = { label: 'Hyperbolic Extrapolation', points: extLinePts, style: 'dotted', color: '#94a3b8' };
+                }
+            }
+        }
+    }
+
     const lines: ChartLine[] = [];
-    if (Qult && Sf) {
-        const intercept = Qult - targetSlope * Sf;
-        const maxSettle = Math.max(...cs.map(s => s.settlement));
+    if (extrapLine) lines.push(extrapLine);
+    if (Qult && Sf && tangentB !== null) {
+        const intercept = tangentB;
+        const maxSettle = Math.max(Sf, ...cs.map(s => s.settlement));
         lines.push({
             label: '0.05 in/ton Tangent',
             points: [
@@ -415,7 +529,7 @@ export function calculateFullerHoy(steps: LoadTestStep[]): AnalysisResult {
 
     return buildResult(cs, Qult, Sf, {
         type: 'load-settlement',
-        title: "Fuller & Hoy's Method",
+        title: "Fuller & Hoy's Method" + (extrapolated ? " (Extrapolated)" : ""),
         xLabel: 'Settlement (mm)',
         yLabel: 'Load (kN)',
         dataPoints: cs.map(s => ({ x: s.settlement, y: s.load })),
@@ -431,33 +545,67 @@ export function calculateButlerHoy(steps: LoadTestStep[]): AnalysisResult {
     const cs = steps.filter(s => s.status === 'completed');
     if (cs.length < 3) return emptyResult('load-settlement', 'Butler & Hoy', 'Settlement (mm)', 'Load (kN)');
 
-    // Initial tangent from first two non-zero points
     const nonZero = cs.filter(s => s.load > 0 && s.settlement > 0);
     if (nonZero.length < 2) return emptyResult('load-settlement', 'Butler & Hoy', 'Settlement (mm)', 'Load (kN)');
     const initialSlope = nonZero[0].load / nonZero[0].settlement;
 
-    // 0.05 in/ton tangent
-    const targetSlope = 1 / 0.1427;
+    const targetSlope = 8.89644 / 1.27; // ≈ 7.005 kN/mm
     let tangentB: number | null = null;
+    let tangentS: number | null = null; 
+
+    // 1. Try raw data
     for (let i = 1; i < cs.length; i++) {
         const slope = (cs[i].load - cs[i - 1].load) / (cs[i].settlement - cs[i - 1].settlement);
         if (slope <= targetSlope) {
             tangentB = cs[i].load - targetSlope * cs[i].settlement;
+            tangentS = cs[i].settlement;
             break;
         }
     }
 
-    if (tangentB === null) return emptyResult('load-settlement', 'Butler & Hoy', 'Settlement (mm)', 'Load (kN)');
+    let extrapolated = false;
+    let extrapLine: ChartLine | null = null;
+
+    // 2. Hyperbolic Extrapolation
+    if (tangentB === null) {
+        const dataPoints = nonZero.map(s => ({ x: s.settlement, y: s.settlement / s.load }));
+        if (dataPoints.length >= 3) {
+            let sx = 0, sy = 0, sxy = 0, sx2 = 0;
+            dataPoints.forEach(p => { sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x; });
+            const nn = dataPoints.length;
+            const C1 = (nn * sxy - sx * sy) / (nn * sx2 - sx * sx);
+            const C2 = (sy - C1 * sx) / nn;
+            
+            if (C1 > 0 && C2 > 0 && C2 / targetSlope > 0) {
+                const sqrtTerm = Math.sqrt(C2 / targetSlope);
+                const Se = (sqrtTerm - C2) / C1;
+                if (Se > 0) {
+                    const Qe = Se / (C1 * Se + C2);
+                    tangentB = Qe - targetSlope * Se;
+                    tangentS = Se;
+                    extrapolated = true;
+                    
+                    const maxS = Math.max(...cs.map(s => s.settlement));
+                    const extLinePts = [];
+                    for(let s = maxS; s <= Se * 1.05; s += (Se - maxS) / 10) {
+                        extLinePts.push({ x: s, y: s / (C1 * s + C2) });
+                    }
+                    extrapLine = { label: 'Hyperbolic Extrapolation', points: extLinePts, style: 'dotted', color: '#94a3b8' };
+                }
+            }
+        }
+    }
 
     let Sf: number | null = null, Qult: number | null = null;
-    if (Math.abs(initialSlope - targetSlope) > 0.001) {
+    if (tangentB !== null && Math.abs(initialSlope - targetSlope) > 0.001) {
         Sf = tangentB / (initialSlope - targetSlope);
         Qult = initialSlope * Sf;
     }
 
-    const maxSettle = Math.max(...cs.map(s => s.settlement));
+    const maxSettle = Math.max(...cs.map(s => s.settlement), Sf || 0, tangentS || 0);
     const lines: ChartLine[] = [];
-    if (Qult && Sf) {
+    if (extrapLine) lines.push(extrapLine);
+    if (Qult && Sf && tangentB !== null) {
         lines.push({
             label: 'Initial Tangent',
             points: [{ x: 0, y: 0 }, { x: Sf * 1.3, y: initialSlope * Sf * 1.3 }],
@@ -475,7 +623,7 @@ export function calculateButlerHoy(steps: LoadTestStep[]): AnalysisResult {
 
     return buildResult(cs, Qult, Sf, {
         type: 'load-settlement',
-        title: "Butler & Hoy's Method",
+        title: "Butler & Hoy's Method" + (extrapolated ? " (Extrapolated)" : ""),
         xLabel: 'Settlement (mm)',
         yLabel: 'Load (kN)',
         dataPoints: cs.map(s => ({ x: s.settlement, y: s.load })),
@@ -587,9 +735,9 @@ function emptyResult(type: ChartType, title: string, xLabel: string, yLabel: str
     };
 }
 
-export function analyzeLoadTest(method: InterpretationMethod, steps: LoadTestStep[], pileDiameter: number, pileLength: number): AnalysisResult {
+export function analyzeLoadTest(method: InterpretationMethod, steps: LoadTestStep[], pileDiameter: number, pileLength: number, pileArea?: number, elasticModulus?: number): AnalysisResult {
     switch (method) {
-        case 'Davisson Offset Limit': return calculateDavisson(steps, pileDiameter, pileLength);
+        case 'Davisson Offset Limit': return calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus);
         case 'Chin-Kondner Extrapolation': return calculateChin(steps);
         case 'De Beer Log-Log': return calculateDeBeer(steps);
         case 'Brinch-Hansen 90%': return calculateBrinchHansen(steps, '90%');
@@ -598,6 +746,6 @@ export function analyzeLoadTest(method: InterpretationMethod, steps: LoadTestSte
         case 'Fuller & Hoy (0.05 in/ton)': return calculateFullerHoy(steps);
         case 'Butler & Hoy': return calculateButlerHoy(steps);
         case 'Van der Veen': return calculateVanDerVeen(steps);
-        default: return calculateDavisson(steps, pileDiameter, pileLength);
+        default: return calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus);
     }
 }

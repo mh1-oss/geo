@@ -47,15 +47,16 @@ describe('Pile Load Test Interpretation Methods', () => {
         }
     });
 
-    it('Brinch-Hansen 90%: returns brinch-hansen-sqrt chart (√S vs S/Q)', () => {
+    it('Brinch-Hansen 90%: returns brinch-hansen-sqrt chart (Δ vs √Δ/Q)', () => {
         const result = analyzeLoadTest('Brinch-Hansen 90%', mockSteps, 600, 24.5);
         expect(result.chart.type).toBe('brinch-hansen-sqrt');
-        expect(result.chart.xLabel).toContain('√');
-        expect(result.chart.yLabel).toContain('S/Q');
+        expect(result.chart.xLabel).toContain('Δ'); // 'Settlement Δ (mm)'
+        expect(result.chart.yLabel).toContain('√Δ / Q');
         expect(result.chart.dataPoints.length).toBeGreaterThan(0);
-        // Verify data transform: x = sqrt(settlement), y = settlement/load
+        // Verify data transform: x = settlement, y = sqrt(settlement)/load
         const firstNonZero = mockSteps.filter(s => s.load > 0 && s.settlement > 0)[0];
-        expect(result.chart.dataPoints[0].x).toBeCloseTo(Math.sqrt(firstNonZero.settlement), 3);
+        expect(result.chart.dataPoints[0].x).toBeCloseTo(firstNonZero.settlement, 3);
+        expect(result.chart.dataPoints[0].y).toBeCloseTo(Math.sqrt(firstNonZero.settlement) / firstNonZero.load, 3);
         if (result.ultimateCapacity !== null) {
             expect(result.ultimateCapacity).toBeGreaterThan(2000);
         }
@@ -96,7 +97,7 @@ describe('Pile Load Test Interpretation Methods', () => {
         expect(result.chart.type).toBe('load-settlement');
         if (result.ultimateCapacity !== null) {
             expect(result.ultimateCapacity).toBeGreaterThan(2000);
-            expect(result.chart.lines.length).toBe(2); // initial tangent + 0.05 tangent
+            expect(result.chart.lines.length).toBeGreaterThanOrEqual(2); // initial tangent + 0.05 tangent (+ optional extrapolation)
         }
     });
 

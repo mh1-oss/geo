@@ -2,21 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f0f4f8;
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  html.dark body {
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
+
+  /* Custom Scrollbar for a sleek modern look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
 }
 
-html.dark body {
-  background-color: #0a0f14;
-}
-
-/* Subtle blueprint background grid */
+/* Updated premium blueprint background */
 .blueprint-bg {
   background-color: #f8fafc;
   background-image:
@@ -30,18 +55,20 @@ html.dark body {
 
 html.dark .blueprint-bg {
   background-color: transparent;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  @apply bg-white/70 dark:bg-[#1e293b]/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
 }
 
 /* ─── Print Styles ─── */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 8mm;
+    margin: 0;
   }
 
   /* Reset everything */
@@ -53,6 +80,13 @@ html.dark .blueprint-bg {
     print-color-adjust: exact !important;
     overflow: visible !important;
     height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Hide sidebar, hamburger, overlays */
@@ -84,7 +118,7 @@ html.dark .blueprint-bg {
     position: static !important;
   }
 
-  /* Report pages */
+  /* Report pages: each PageShell gets its own page */
   .report-page {
     break-after: page;
     page-break-after: always;
@@ -118,4 +152,4 @@ html.dark .blueprint-bg {
     background-image: none !important;
     background-color: white !important;
   }
-}
+}
