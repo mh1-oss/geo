@@ -272,7 +272,7 @@ export default function LoadTestLab() {
                                     {chartInfo.chart.type}
                                 </span>
                             </div>
-                            <div className="flex-1 pt-12 pr-8 pb-16 pl-20 sm:pl-32 flex flex-col relative w-full h-[400px]">
+                            <div className="flex-1 pt-8 pr-4 pb-12 pl-12 sm:pt-12 sm:pr-8 sm:pb-16 sm:pl-20 md:pl-32 flex flex-col relative w-full h-[400px]">
                                 {/* SVG Content adapted for light/dark */}
                                 <div className="flex-1 relative border-l-2 border-b-2 border-slate-300 dark:border-slate-700/60" style={{ height: '100%', width: '100%' }}>
                                     <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
@@ -363,12 +363,12 @@ export default function LoadTestLab() {
                                     </svg>
                                     
                                     {/* Labels overlaid on SVG bounds */}
-                                    <div className="absolute top-0 bottom-0 -left-12 w-10 flex flex-col justify-between pointer-events-none">
+                                    <div className="absolute top-0 bottom-0 -left-10 sm:-left-12 w-8 sm:w-10 flex flex-col justify-between pointer-events-none">
                                         {[...chartInfo.yTicks].reverse().map((v, i) => (
                                             <span key={`yt-${i}`} className="text-[10px] sm:text-xs text-slate-500 text-right pr-1 font-mono leading-none">{fmtNum(v)}</span>
                                         ))}
                                     </div>
-                                    <div className="absolute top-1/2 -left-16 -translate-y-1/2 -rotate-90 text-[10px] sm:text-xs tracking-widest uppercase text-slate-400 font-bold whitespace-nowrap origin-center" style={{ width: 0 }}>
+                                    <div className="absolute top-1/2 -left-14 sm:-left-16 -translate-y-1/2 -rotate-90 text-[9px] sm:text-xs tracking-widest uppercase text-slate-400 font-bold whitespace-nowrap origin-center" style={{ width: 0 }}>
                                         {chartInfo.chart.yLabel}
                                     </div>
                                     <div className="absolute -bottom-6 left-0 right-0 flex justify-between pointer-events-none">
@@ -413,43 +413,43 @@ export default function LoadTestLab() {
                                 </button>
                             </div>
                             <div className="flex-1 overflow-auto custom-scrollbar">
-                                <table className="w-full text-sm text-left whitespace-nowrap">
+                                <table className="w-full text-xs sm:text-sm text-left">
                                     <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700/50">
-                                        <tr className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-                                            <th className="px-5 py-4 w-12 text-center">Step</th>
-                                            <th className="px-5 py-4 text-right">Load (kN)</th>
-                                            <th className="px-5 py-4 text-right">Settlement (mm)</th>
-                                            <th className="px-5 py-4 text-right w-24">Hold (min)</th>
-                                            <th className="px-5 py-4 text-center">Status</th>
-                                            <th className="px-5 py-4 w-10"></th>
+                                    <tr className="text-[9px] sm:text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                                            <th className="px-3 sm:px-5 py-3 sm:py-4 w-10 text-center">Step</th>
+                                            <th className="px-3 sm:px-5 py-3 sm:py-4 text-right">Load</th>
+                                            <th className="px-3 sm:px-5 py-3 sm:py-4 text-right">Settle</th>
+                                            <th className="hidden sm:table-cell px-5 py-4 text-right w-24">Hold (min)</th>
+                                            <th className="px-3 sm:px-5 py-3 sm:py-4 text-center">Status</th>
+                                            <th className="px-3 sm:px-5 py-3 sm:py-4 w-8"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                                         {steps.map((s, i) => (
                                             <tr key={i} className={`transition-colors group ${s.status === 'active' ? 'bg-amber-500/5 dark:bg-amber-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                                                <td className="px-5 py-3 text-center text-slate-400 font-mono font-bold">{s.step}</td>
-                                                <td className="px-5 py-3 text-right">
-                                                    <input className="bg-transparent text-slate-900 dark:text-white text-right w-20 outline-none focus:ring-2 ring-primary/30 rounded px-2 py-1 font-mono transition-shadow border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-700" type="number"
+                                                <td className="px-3 sm:px-5 py-2 sm:py-3 text-center text-slate-400 font-mono font-bold">{s.step}</td>
+                                                <td className="px-3 sm:px-5 py-2 sm:py-3 text-right">
+                                                    <input className="bg-transparent text-slate-900 dark:text-white text-right w-14 sm:w-20 outline-none focus:ring-2 ring-primary/30 rounded px-1 sm:px-2 py-1 font-mono text-xs sm:text-sm transition-shadow border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-700" type="number"
                                                         value={s.load} onChange={(e) => updateStep(i, 'load', Number(e.target.value))} />
                                                 </td>
-                                                <td className="px-5 py-3 text-right">
-                                                    <input className="bg-transparent text-slate-900 dark:text-white text-right w-24 outline-none focus:ring-2 ring-primary/30 rounded px-2 py-1 font-mono transition-shadow border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-700" type="number" step="0.1"
+                                                <td className="px-3 sm:px-5 py-2 sm:py-3 text-right">
+                                                    <input className="bg-transparent text-slate-900 dark:text-white text-right w-14 sm:w-24 outline-none focus:ring-2 ring-primary/30 rounded px-1 sm:px-2 py-1 font-mono text-xs sm:text-sm transition-shadow border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-700" type="number" step="0.1"
                                                         value={s.settlement} onChange={(e) => updateStep(i, 'settlement', Number(e.target.value))} />
                                                 </td>
-                                                <td className="px-5 py-3 text-right">
+                                                <td className="hidden sm:table-cell px-5 py-3 text-right">
                                                     <input className="bg-transparent text-slate-900 dark:text-white text-right w-16 outline-none focus:ring-2 ring-primary/30 rounded px-2 py-1 font-mono transition-shadow border border-slate-200 dark:border-transparent hover:border-slate-300 dark:hover:border-slate-700" type="number"
                                                         value={s.holdTime} onChange={(e) => updateStep(i, 'holdTime', Number(e.target.value))} />
                                                 </td>
-                                                <td className="px-5 py-3 text-center">
-                                                    <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                                <td className="px-3 sm:px-5 py-2 sm:py-3 text-center">
+                                                    <span className={`inline-flex items-center justify-center px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${
                                                         s.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' :
                                                         s.status === 'active' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse' :
                                                         'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
                                                     }`}>{s.status}</span>
                                                 </td>
-                                                <td className="px-5 py-3 text-center">
-                                                    <button onClick={() => deleteStep(i)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
-                                                        <span className="material-symbols-outlined block text-[18px]">delete</span>
+                                                <td className="px-3 sm:px-5 py-2 sm:py-3 text-center">
+                                                    <button onClick={() => deleteStep(i)} className="p-1 sm:p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                                        <span className="material-symbols-outlined block text-[16px] sm:text-[18px]">delete</span>
                                                     </button>
                                                 </td>
                                             </tr>
