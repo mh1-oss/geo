@@ -54,6 +54,7 @@ export default function LoadTestLab() {
     ]);
     const [simRunning, setSimRunning] = useState(false);
     const [simStep, setSimStep] = useState(0);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const analysis = useMemo(() => {
         return analyzeLoadTest(failureCriteria, steps, pileDiameter, pileLength, pileArea, elasticModulus);
@@ -126,8 +127,32 @@ export default function LoadTestLab() {
 
     return (
         <div className="flex flex-1 w-full h-full flex-col lg:flex-row relative">
+            {/* Mobile overlay backdrop */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            {/* Mobile toggle button */}
+            <button
+                onClick={() => setSidebarOpen(v => !v)}
+                className="fixed bottom-5 right-5 z-50 lg:hidden flex items-center gap-2 px-4 py-3 bg-primary text-white rounded-2xl shadow-xl font-bold text-sm shadow-primary/30 active:scale-95 transition-transform"
+            >
+                <span className="material-symbols-outlined text-[20px]">{sidebarOpen ? 'close' : 'tune'}</span>
+                {sidebarOpen ? 'Close' : 'Settings'}
+            </button>
             {/* Left Sidebar: Configuration */}
-            <aside className="w-full lg:w-[340px] flex flex-col glass-panel flex-shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-auto lg:h-full lg:overflow-y-auto custom-scrollbar">
+            <aside className={`
+                fixed lg:relative inset-y-0 left-0 z-40
+                w-[300px] lg:w-[340px]
+                flex flex-col glass-panel flex-shrink-0
+                shadow-[4px_0_24px_rgba(0,0,0,0.12)] lg:shadow-[4px_0_24px_rgba(0,0,0,0.02)]
+                lg:h-full lg:overflow-y-auto custom-scrollbar
+                transition-transform duration-300 ease-in-out
+                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            `}>
                 <div className="p-6 border-b border-slate-200 dark:border-slate-800/60 flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
                         <span className="material-symbols-outlined block text-[24px]">science</span>
