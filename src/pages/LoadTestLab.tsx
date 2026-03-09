@@ -55,10 +55,11 @@ export default function LoadTestLab() {
     const [simRunning, setSimRunning] = useState(false);
     const [simStep, setSimStep] = useState(0);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [factorOfSafety, setFactorOfSafety] = useState(2.5);
 
     const analysis = useMemo(() => {
-        return analyzeLoadTest(failureCriteria, steps, pileDiameter, pileLength, pileArea, elasticModulus);
-    }, [steps, failureCriteria, pileDiameter, pileLength, pileArea, elasticModulus]);
+        return analyzeLoadTest(failureCriteria, steps, pileDiameter, pileLength, pileArea, elasticModulus, factorOfSafety);
+    }, [steps, failureCriteria, pileDiameter, pileLength, pileArea, elasticModulus, factorOfSafety]);
 
     const runSimulation = useCallback(() => {
         setSimRunning(true);
@@ -237,6 +238,14 @@ export default function LoadTestLab() {
                                 <span className="font-semibold text-slate-600 dark:text-slate-400 text-sm">Material</span>
                                 <span className="font-bold text-slate-900 dark:text-white text-sm">{material}</span>
                             </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/50">
+                                <span className="font-semibold text-slate-600 dark:text-slate-400 text-sm">Factor of Safety</span>
+                                <div className="flex items-center gap-1.5 focus-within:ring-2 focus-within:ring-primary/30 rounded px-1 transition-all">
+                                    <input className="font-bold text-slate-900 dark:text-white bg-transparent text-right w-12 outline-none font-mono" type="number" step="0.1" min="1" max="5"
+                                        value={factorOfSafety} onChange={(e) => setFactorOfSafety(Number(e.target.value))} />
+                                    <span className="text-slate-400 text-xs font-bold">FS</span>
+                                </div>
+                            </div>
                         </div>
 
                         <button onClick={runSimulation} disabled={simRunning}
@@ -276,7 +285,7 @@ export default function LoadTestLab() {
                             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                                 <span className="material-symbols-outlined text-[64px] text-emerald-500">verified</span>
                             </div>
-                            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Safe Working Load (FS=2.0)</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Safe Working Load (FS={factorOfSafety})</p>
                             <p className="text-3xl lg:text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
                                 {analysis.safeWorkLoad ? analysis.safeWorkLoad.toLocaleString() : '—'} <span className="text-lg font-bold text-emerald-600/50 dark:text-emerald-400/50 ml-0.5">kN</span>
                             </p>

@@ -718,12 +718,12 @@ export function calculateVanDerVeen(steps: LoadTestStep[]): AnalysisResult {
 // ─────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────
-function buildResult(cs: LoadTestStep[], Qult: number | null, _Sf: number | null, chart: ChartData): AnalysisResult {
+function buildResult(cs: LoadTestStep[], Qult: number | null, _Sf: number | null, chart: ChartData, fs: number = 2.5): AnalysisResult {
     const maxSettlement = cs.length > 0 ? Math.max(...cs.map(s => s.settlement)) : null;
     return {
         ultimateCapacity: Qult ? Math.round(Qult) : null,
         maxSettlement,
-        safeWorkLoad: Qult ? Math.round(Qult / 2.5) : null,
+        safeWorkLoad: Qult ? Math.round(Qult / fs) : null,
         chart,
     };
 }
@@ -735,17 +735,21 @@ function emptyResult(type: ChartType, title: string, xLabel: string, yLabel: str
     };
 }
 
-export function analyzeLoadTest(method: InterpretationMethod, steps: LoadTestStep[], pileDiameter: number, pileLength: number, pileArea?: number, elasticModulus?: number): AnalysisResult {
+export function analyzeLoadTest(method: InterpretationMethod, steps: LoadTestStep[], pileDiameter: number, pileLength: number, pileArea?: number, elasticModulus?: number, fs: number = 2.5): AnalysisResult {
+    const wrap = (result: AnalysisResult): AnalysisResult => ({
+        ...result,
+        safeWorkLoad: result.ultimateCapacity ? Math.round(result.ultimateCapacity / fs) : null,
+    });
     switch (method) {
-        case 'Davisson Offset Limit': return calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus);
-        case 'Chin-Kondner Extrapolation': return calculateChin(steps);
-        case 'De Beer Log-Log': return calculateDeBeer(steps);
-        case 'Brinch-Hansen 90%': return calculateBrinchHansen(steps, '90%');
-        case 'Brinch-Hansen 80%': return calculateBrinchHansen(steps, '80%');
-        case 'Mazurkiewicz': return calculateMazurkiewicz(steps);
-        case 'Fuller & Hoy (0.05 in/ton)': return calculateFullerHoy(steps);
-        case 'Butler & Hoy': return calculateButlerHoy(steps);
-        case 'Van der Veen': return calculateVanDerVeen(steps);
-        default: return calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus);
+        case 'Davisson Offset Limit': return wrap(calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus));
+        case 'Chin-Kondner Extrapolation': return wrap(calculateChin(steps));
+        case 'De Beer Log-Log': return wrap(calculateDeBeer(steps));
+        case 'Brinch-Hansen 90%': return wrap(calculateBrinchHansen(steps, '90%'));
+        case 'Brinch-Hansen 80%': return wrap(calculateBrinchHansen(steps, '80%'));
+        case 'Mazurkiewicz': return wrap(calculateMazurkiewicz(steps));
+        case 'Fuller & Hoy (0.05 in/ton)': return wrap(calculateFullerHoy(steps));
+        case 'Butler & Hoy': return wrap(calculateButlerHoy(steps));
+        case 'Van der Veen': return wrap(calculateVanDerVeen(steps));
+        default: return wrap(calculateDavisson(steps, pileDiameter, pileLength, pileArea, elasticModulus));
     }
 }
